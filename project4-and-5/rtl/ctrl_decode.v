@@ -73,7 +73,7 @@ module ctrl_decode (
                                                funct3 == 3'b101)));
             end
 
-            // ---------------- OP-IMM : register-immediate arithmetic ------
+            // OP-IMM : register-immediate arithmetic
             7'b0010011: begin
                 o_reg_we       = 1'b1;
                 o_op1_sel      = 2'd0;              // rs1
@@ -85,8 +85,7 @@ module ctrl_decode (
                 o_wb_sel       = 2'd0;
                 o_uses_rs1     = 1'b1;
                 // Shift immediates reuse the funct7 field, so it is checked.
-                // Written as a nested case: the course rules disallow
-                // if/else in combinational logic.
+               
                 case (funct3)
                     3'b001:  o_illegal = !f7_zero;               // SLLI
                     3'b101:  o_illegal = !(f7_zero || f7_alt);   // SRLI/SRAI

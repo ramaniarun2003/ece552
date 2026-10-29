@@ -44,9 +44,8 @@ module lsu_align (
     end
     assign o_dmem_mask = mask_shifted;
 
-    // ------------------------------------------------------------------
     // Store data: shift up into the addressed byte lane.
-    // ------------------------------------------------------------------
+    
     reg [31:0] wdata_shifted;
     always @(*) begin
         case (off)
@@ -58,12 +57,9 @@ module lsu_align (
     end
     assign o_dmem_wdata = wdata_shifted;
 
-    // ------------------------------------------------------------------
+    
     // Load data: shift the addressed bytes down to bit 0, then extend.
-    // Lanes the mask did not enable come back as X from the testbench
-    // memory, so the extension below discards them rather than let them
-    // through.
-    // ------------------------------------------------------------------
+   
     reg [31:0] rdata_shifted;
     always @(*) begin
         case (off)

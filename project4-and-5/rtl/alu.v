@@ -22,31 +22,20 @@ module alu (
     wire [31:0] diff = i_op1 - i_op2;
     wire [31:0] sum  = i_sub ? diff : (i_op1 + i_op2);
  
-    // ------------------------------------------------------------------
-    // Comparison flags. Both the branch unit and the SLT family read these.
-    // When the signs differ the negative operand is the smaller one; when
-    // they match the subtraction's sign bit answers it.
-    // ------------------------------------------------------------------
+    
     wire slt_signed   = (i_op1[31] ^ i_op2[31]) ? i_op1[31] : diff[31];
     wire slt_unsigned = (i_op1 < i_op2);
  
     assign o_eq  = (i_op1 == i_op2);
     assign o_slt = i_unsigned ? slt_unsigned : slt_signed;
  
-    // ------------------------------------------------------------------
-    // Left barrel shifter, five constant-shift stages.
-    // ------------------------------------------------------------------
     wire [31:0] sl0 = shamt[0] ? {i_op1[30:0],  1'd0} : i_op1;
     wire [31:0] sl1 = shamt[1] ? {sl0[29:0],    2'd0} : sl0;
     wire [31:0] sl2 = shamt[2] ? {sl1[27:0],    4'd0} : sl1;
     wire [31:0] sl3 = shamt[3] ? {sl2[23:0],    8'd0} : sl2;
     wire [31:0] sl4 = shamt[4] ? {sl3[15:0],   16'd0} : sl3;
  
-    // ------------------------------------------------------------------
-    // Right barrel shifter. The fill bit makes one shifter serve both SRL
-    // and SRA: arithmetic shifts preserve the sign, so i_op1[31] is still
-    // the correct fill at every stage.
-    // ------------------------------------------------------------------
+    
     wire fill = i_arith & i_op1[31];
  
     wire [31:0] sr0 = shamt[0] ? {{ 1{fill}}, i_op1[31: 1]} : i_op1;
