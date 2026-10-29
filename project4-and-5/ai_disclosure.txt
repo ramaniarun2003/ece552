@@ -1,0 +1,2 @@
+AI disclosure statement:
+When Gradescope’s trace comparison failed and some datapaths were not being detected, I used Claude to help interpret the failures and narrow down which pipeline register field or control signal was wrong.
