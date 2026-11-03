@@ -308,6 +308,7 @@ module hart #(
         .i_id_rs2      (id_rs2),
         .i_ex_valid    (idex_valid),
         .i_ex_reg_we   (idex_reg_we),
+        .i_ex_mem_ren  (idex_mem_ren),
         .i_ex_rd       (idex_rd),
         .i_mem_valid   (exmem_valid),
         .i_mem_reg_we  (exmem_reg_we),

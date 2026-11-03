@@ -11,6 +11,7 @@ module hazard_unit (
 
     input  wire        i_ex_valid,
     input  wire        i_ex_reg_we,
+    input  wire        i_ex_mem_ren,    //when instr is a load
     input  wire [ 4:0] i_ex_rd,
 
     input  wire        i_mem_valid,
@@ -19,6 +20,11 @@ module hazard_unit (
 
     output wire        o_stall
 );
+    //Loads must wait
+    wire ex_load_pending = i_ex_valid && i_ex_reg_we && i_ex_mem_ren && (i_ex_rd != 5'd0);
+        
+    //MEM-to-EX forwaring X
+    wire mem_write_pending = i_mem_valid && i_mem_reg_we && (i_mem_rd != 5'd0);
 
     wire ex_hit_rs1  = i_ex_valid  & i_ex_reg_we  & (i_ex_rd  == i_id_rs1);
     wire mem_hit_rs1 = i_mem_valid & i_mem_reg_we & (i_mem_rd == i_id_rs1);
