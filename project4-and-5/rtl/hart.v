@@ -46,6 +46,8 @@ module hart #(
     wire        stall;
     wire        redirect;
     wire [31:0] ex_target;
+    wire [31:0] ex_rs1_data;   // rs1 after forwarding
+    wire [31:0] ex_rs2_data;   // rs2 after forwarding
 
     // Fetch
 
@@ -225,6 +227,14 @@ module hart #(
     reg        exmem_uses_rs2;
     reg        exmem_halt;
     reg        exmem_trap;
+
+    // MEM-EX forwarding
+
+    wire fwd_wb_rs1 = rf_wen & idex_uses_rs1 & (memwb_rd == idex_rs1);
+    wire fwd_wb_rs2 = rf_wen & idex_uses_rs2 & (memwb_rd == idex_rs2);
+
+    assign ex_rs1_data = fwd_wb_rs1 ? wb_data : idex_rs1_data;
+    assign ex_rs2_data = fwd_wb_rs2 ? wb_data : idex_rs2_data;
 
     // Memory
 
