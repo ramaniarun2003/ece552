@@ -230,9 +230,7 @@ module hart #(
 
     // Forwarding into EX (EX-EX and MEM-EX share one mux per operand)
 
-    // EX-EX: the instruction in MEM writes a register the instruction in EX
-    // reads. A load in MEM cannot forward (data arrives at the end of MEM);
-    // the hazard unit stalls that case instead.
+    // EX-EX:
     wire exmem_can_forward =
         idex_valid &&
         exmem_valid &&
@@ -247,10 +245,7 @@ module hart #(
     wire forward_rs1 = exmem_can_forward && idex_uses_rs1 && (exmem_rd == idex_rs1);
     wire forward_rs2 = exmem_can_forward && idex_uses_rs2 && (exmem_rd == idex_rs2);
 
-    // MEM-EX: the instruction in WB writes a register the instruction in EX
-    // reads. rf_wen already folds in memwb_valid, memwb_reg_we, ~memwb_trap
-    // and memwb_rd != 0; wb_data is the post writeback-mux value, so ALU
-    // results, load data and link values all arrive through one path.
+    // MEM-EX: 
     wire fwd_wb_rs1 = rf_wen & idex_uses_rs1 & (memwb_rd == idex_rs1);
     wire fwd_wb_rs2 = rf_wen & idex_uses_rs2 & (memwb_rd == idex_rs2);
 
