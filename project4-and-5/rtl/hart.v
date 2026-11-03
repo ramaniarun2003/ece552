@@ -164,13 +164,13 @@ module hart #(
     reg  [31:0] ex_alu_op1;
     always @(*) begin
         case (idex_op1_sel)
-            2'd0:    ex_alu_op1 = idex_rs1_data;   // rs1
-            2'd1:    ex_alu_op1 = idex_pc;         // auipc
-            default: ex_alu_op1 = 32'd0;           // lui
+            2'd0:    ex_alu_op1 = ex_rs1_data;      // forwarded rs1
+            2'd1:    ex_alu_op1 = idex_pc;          // auipc
+            default: ex_alu_op1 = 32'd0;            // lui
         endcase
     end
 
-    wire [31:0] ex_alu_op2 = idex_op2_sel ? idex_imm : idex_rs2_data;
+    wire [31:0] ex_alu_op2 = idex_op2_sel ? idex_imm : ex_rs2_data;
 
     wire [31:0] ex_alu_result;
     wire        ex_alu_eq;
@@ -375,8 +375,8 @@ module hart #(
             exmem_pc         <= idex_pc;
             exmem_inst       <= idex_inst;
             exmem_alu_result <= ex_alu_result;
-            exmem_rs1_data   <= idex_rs1_data;
-            exmem_rs2_data   <= idex_rs2_data;
+            exmem_rs1_data   <= ex_rs1_data;
+            exmem_rs2_data   <= ex_rs2_data;
             exmem_next_pc    <= ex_next_pc;
             exmem_rs1        <= idex_rs1;
             exmem_rs2        <= idex_rs2;
@@ -416,6 +416,35 @@ module hart #(
             memwb_dmem_wdata <= mem_dmem_wdata;
         end
     end
+
+    //EX-to-EX forwarding 
+
+    wire exmem_can_forward = 
+        idex_valid &&
+        exmem_valid &&
+        exmem_reg_we &&
+        (exmem_rd != 5'd0) &&
+        !exmem_trap &&
+        !exmem_mem_ren;
+
+    wire [31:0] exmem_forward_data = 
+        (exmem_wb_sel == 2'd2) ? (exmem_pc + 32'd4) : exmem_alu_result;
+    
+    wire forward_rs1 = 
+        exmem_can_forward &&
+        idex_uses_rs1 &&
+        (exmem_rd == idex_rs1);
+    
+    wire forward_rs2 = 
+        exmem_can_forward &&
+        idex_uses_rs2 &&
+        (exmem_rd == idex_rs2);
+    
+    wire [31:0] ex_rs1_data = 
+        forward_rs1 ? exmem_forward_data : idex_rs1_data;
+
+    wire [31:0] ex_rs2_data = 
+        forward_rs2 ? exmem_forward_data : idex_rs2_data;
 
     // Retire
 
