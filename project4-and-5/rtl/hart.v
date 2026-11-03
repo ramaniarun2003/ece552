@@ -228,13 +228,39 @@ module hart #(
     reg        exmem_halt;
     reg        exmem_trap;
 
-    // MEM-EX forwarding
+    // Forwarding into EX (EX-EX and MEM-EX share one mux per operand)
 
+    // EX-EX: the instruction in MEM writes a register the instruction in EX
+    // reads. A load in MEM cannot forward (data arrives at the end of MEM);
+    // the hazard unit stalls that case instead.
+    wire exmem_can_forward =
+        idex_valid &&
+        exmem_valid &&
+        exmem_reg_we &&
+        (exmem_rd != 5'd0) &&
+        !exmem_trap &&
+        !exmem_mem_ren;
+
+    wire [31:0] exmem_forward_data =
+        (exmem_wb_sel == 2'd2) ? (exmem_pc + 32'd4) : exmem_alu_result;
+
+    wire forward_rs1 = exmem_can_forward && idex_uses_rs1 && (exmem_rd == idex_rs1);
+    wire forward_rs2 = exmem_can_forward && idex_uses_rs2 && (exmem_rd == idex_rs2);
+
+    // MEM-EX: the instruction in WB writes a register the instruction in EX
+    // reads. rf_wen already folds in memwb_valid, memwb_reg_we, ~memwb_trap
+    // and memwb_rd != 0; wb_data is the post writeback-mux value, so ALU
+    // results, load data and link values all arrive through one path.
     wire fwd_wb_rs1 = rf_wen & idex_uses_rs1 & (memwb_rd == idex_rs1);
     wire fwd_wb_rs2 = rf_wen & idex_uses_rs2 & (memwb_rd == idex_rs2);
 
-    assign ex_rs1_data = fwd_wb_rs1 ? wb_data : idex_rs1_data;
-    assign ex_rs2_data = fwd_wb_rs2 ? wb_data : idex_rs2_data;
+    // Newest writer wins: MEM (EX-EX) over WB (MEM-EX) over the value read in ID.
+    assign ex_rs1_data = forward_rs1 ? exmem_forward_data :
+                         fwd_wb_rs1  ? wb_data            :
+                                       idex_rs1_data;
+    assign ex_rs2_data = forward_rs2 ? exmem_forward_data :
+                         fwd_wb_rs2  ? wb_data            :
+                                       idex_rs2_data;
 
     // Memory
 
@@ -427,35 +453,6 @@ module hart #(
             memwb_dmem_wdata <= mem_dmem_wdata;
         end
     end
-
-    //EX-to-EX forwarding 
-
-    wire exmem_can_forward = 
-        idex_valid &&
-        exmem_valid &&
-        exmem_reg_we &&
-        (exmem_rd != 5'd0) &&
-        !exmem_trap &&
-        !exmem_mem_ren;
-
-    wire [31:0] exmem_forward_data = 
-        (exmem_wb_sel == 2'd2) ? (exmem_pc + 32'd4) : exmem_alu_result;
-    
-    wire forward_rs1 = 
-        exmem_can_forward &&
-        idex_uses_rs1 &&
-        (exmem_rd == idex_rs1);
-    
-    wire forward_rs2 = 
-        exmem_can_forward &&
-        idex_uses_rs2 &&
-        (exmem_rd == idex_rs2);
-    
-    wire [31:0] ex_rs1_data = 
-        forward_rs1 ? exmem_forward_data : idex_rs1_data;
-
-    wire [31:0] ex_rs2_data = 
-        forward_rs2 ? exmem_forward_data : idex_rs2_data;
 
     // Retire
 
