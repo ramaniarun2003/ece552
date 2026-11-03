@@ -1,25 +1,19 @@
 // hart.v
 // Single-cycle RV32I processor.
-//
-// The port list below is unchanged from the starter file -- names, widths,
-// directions and order all match. The original header comments were trimmed
-// for length; keep yours if you prefer, only the body below matters.
 
 `default_nettype none
 
 module hart #(
-    // After reset, the program counter is initialized to this address.
     parameter RESET_ADDR = 32'h00000000
 ) (
     input  wire        i_clk,
     input  wire        i_rst,
 
-    // Instruction memory: combinational read, 4-byte aligned address.
+    // Instruction memory
     output wire [31:0] o_imem_raddr,
     input  wire [31:0] i_imem_rdata,
 
-    // Data memory: word-aligned address + byte mask. Reads combinational,
-    // writes land on the next rising edge. ren and wen are mutually exclusive.
+    // Data memory
     output wire [31:0] o_dmem_addr,
     output wire        o_dmem_ren,
     output wire        o_dmem_wen,
@@ -27,7 +21,7 @@ module hart #(
     output wire [ 3:0] o_dmem_mask,
     input  wire [31:0] i_dmem_rdata,
 
-    // Retire interface, consumed by the testbench to build the trace.
+    // Retire interface
     output wire        o_retire_valid,
     output wire [31:0] o_retire_inst,
     output wire        o_retire_trap,
@@ -46,9 +40,8 @@ module hart #(
 `endif
 );
 
-    // =====================================================================
+    
     // Fetch
-    // =====================================================================
     reg  [31:0] pc;
     wire [31:0] pc_plus_4 = pc + 32'd4;
     wire [31:0] next_pc;
@@ -61,11 +54,8 @@ module hart #(
         else       pc <= next_pc;
     end
 
-    // =====================================================================
     // Decode
-    // =====================================================================
-    // Register addresses sit at fixed bit positions in every format, so they
-    // can be pulled out before the instruction has been identified.
+
     wire [4:0] rs1_addr = inst[19:15];
     wire [4:0] rs2_addr = inst[24:20];
     wire [4:0] rd_addr  = inst[11:7];
@@ -116,18 +106,16 @@ module hart #(
         .o_halt         (halt)
     );
 
-    // =====================================================================
+
     // Register file
-    // =====================================================================
+ 
     wire [31:0] rs1_data;
     wire [31:0] rs2_data;
     wire [31:0] rd_wdata;
     wire        reg_we;
     wire        rf_we = reg_we & (rd_addr != 5'd0);
 
-    // >>> CHECK THESE PORT NAMES against your repo's regfile.v. The parameter
-    // >>> must be BYPASS_EN = 0 per the project spec; only the port names and
-    // >>> module name may need adjusting.
+    
     regfile #(
         .BYPASS_EN (0)
     ) u_regfile (
@@ -142,9 +130,9 @@ module hart #(
         .i_rd_wen    (rf_we)
     );
 
-    // =====================================================================
+  
     // Execute
-    // =====================================================================
+   =
     reg [31:0] alu_op1;
     always @(*) begin
         case (op1_sel)
@@ -160,7 +148,7 @@ module hart #(
     wire        alu_eq;
     wire        alu_slt;
 
-    // >>> CHECK THESE PORT NAMES against your repo's alu.v.
+   
     alu u_alu (
         .i_op1      (alu_op1),
         .i_op2      (alu_op2),
@@ -173,27 +161,24 @@ module hart #(
         .o_slt      (alu_slt)
     );
 
-    // =====================================================================
+    
     // Branch resolution and target selection
-    // =====================================================================
-    // All six branches reduce to two gates over the ALU's comparison flags.
-    //   funct3[2] picks which flag, funct3[0] inverts it.
+   
     wire cond  = funct3[2] ? alu_slt : alu_eq;
     wire taken = funct3[0] ? ~cond : cond;
 
     wire branch_taken = is_branch & taken;
     wire do_jump      = is_jump | branch_taken;
 
-    // A dedicated adder, so the branch comparison and the target computation
-    // happen in parallel rather than one behind the other.
+   
     wire [31:0] pc_target   = pc + imm;
     // jalr clears bit 0 of the computed address; bit 1 is a trap, not a mask.
     wire [31:0] jalr_target = {alu_result[31:1], 1'b0};
     wire [31:0] target      = target_sel ? jalr_target : pc_target;
 
-    // =====================================================================
+
     // Memory access
-    // =====================================================================
+  
     wire [31:0] load_data;
     wire        mem_misaligned;
     wire [31:0] dmem_addr_aligned;
@@ -212,17 +197,15 @@ module hart #(
         .o_misaligned (mem_misaligned)
     );
 
-    // =====================================================================
+   
     // Traps
-    // =====================================================================
+   
     wire mem_access = mem_ren_raw | mem_wen_raw;
     wire trap_mem   = mem_access & mem_misaligned;
     wire trap_pc    = do_jump & target[1];
     wire trap       = illegal | trap_mem | trap_pc;
 
-    // A trapping instruction performs no architectural side effects: no
-    // register write, no memory access, and the PC falls through to pc + 4
-    // rather than taking the jump.
+  
     assign reg_we      = reg_we_raw  & ~trap;
     assign o_dmem_ren  = mem_ren_raw & ~trap;
     assign o_dmem_wen  = mem_wen_raw & ~trap;
@@ -230,9 +213,9 @@ module hart #(
     assign o_dmem_mask = dmem_mask;
     assign o_dmem_wdata = dmem_wdata;
 
-    // =====================================================================
+
     // Writeback
-    // =====================================================================
+    
     reg [31:0] wb_data;
     always @(*) begin
         case (wb_sel)
@@ -243,29 +226,24 @@ module hart #(
     end
     assign rd_wdata = wb_data;
 
-    // =====================================================================
+
     // Next PC
-    // =====================================================================
+  
     assign next_pc = (do_jump & ~trap) ? target : pc_plus_4;
 
-    // =====================================================================
     // Retire interface
-    // =====================================================================
+   
     // Single cycle: one instruction completes every cycle, unconditionally.
     assign o_retire_valid     = 1'b1;
     assign o_retire_inst      = inst;
     assign o_retire_trap      = trap;
     assign o_retire_halt      = halt;
-    // The project page says these are 5'd0 when the instruction reads no such
-    // register; the hart.v header calls them don't-care. Driving 5'd0
-    // satisfies both readings, and it matters for `fence`, which the
-    // testbench prints with both source fields visible.
+
     assign o_retire_rs1_raddr = uses_rs1 ? rs1_addr : 5'd0;
     assign o_retire_rs2_raddr = uses_rs2 ? rs2_addr : 5'd0;
     assign o_retire_rs1_rdata = uses_rs1 ? rs1_data : 32'd0;
     assign o_retire_rs2_rdata = uses_rs2 ? rs2_data : 32'd0;
-    // Must be zero when the instruction writes no register -- the testbench
-    // gates the w[] trace field on this being non-zero.
+  
     assign o_retire_rd_waddr  = reg_we ? rd_addr : 5'd0;
     assign o_retire_rd_wdata  = rd_wdata;
     assign o_retire_pc        = pc;
